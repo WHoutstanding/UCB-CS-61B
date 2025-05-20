@@ -70,11 +70,7 @@ public class BSTMap<K extends Comparable<K> , V> implements Map61B<K, V> {
         T = new BSTNode<>();
         size = 0;
     }
-
-    public BSTMap(K key, V value) {
-        T = new BSTNode<>(key, value);
-        size = 1;
-    }
+    
 
     /** Removes all of the mappings from this map. */
     public void clear() {
@@ -153,7 +149,4 @@ public class BSTMap<K extends Comparable<K> , V> implements Map61B<K, V> {
         return null;
     }
 
-    public static void main(String[] args) {
-        BSTMap<String, Integer> b = new BSTMap<String, Integer>();
-    }
 }
