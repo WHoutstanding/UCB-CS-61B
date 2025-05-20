@@ -321,6 +321,9 @@ auto-save-list
 tramp
 .\#*
 
+# pdf
+!*.pdf
+
 # Org-mode
 .org-id-locations
 *_archive
