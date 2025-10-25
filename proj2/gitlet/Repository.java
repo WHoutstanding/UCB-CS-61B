@@ -78,36 +78,70 @@ public class Repository {
         writeObject(initialCommitFile, initialCommit);
     }
 
+    /* Return branch name of head. */
+    public static String readHeadBranch() {
+        File headFile = join(GITLET_DIR, "head");
+        return readContentsAsString(headFile);
+    }
+
+    /* Return branch commit sha1 of head. */
+    public static String readHeadBranchCommitSha1() {
+        String currentBranch = readHeadBranch();
+        File currentBranchFile = join(BRANCH_DIR, currentBranch);
+        return readContentsAsString(currentBranchFile);
+    }
+
+    /* Read branch commit object of head. */
+    public static Commit readHeadBranchCommitObject() {
+        String currentCommitSha1 = readHeadBranchCommitSha1();
+        File currentCommitFile = join(COMMIT_DIR, currentCommitSha1);
+        return readObject(currentCommitFile, Commit.class);
+    }
+
+    /* Read file text of commit from blob. */
+    public static String readCommitFileBlob(Commit commit, String fileName){
+        String fileBlobSha1 = commit.files.get(fileName);
+        File blobFile =  join(BlOB_DIR, fileBlobSha1);
+        Blobs blob = readObject(blobFile, Blobs.class);
+        return blob.text;
+    }
+
     public static void add(String fileName) {
         /* The file we need to add. */
         File addFile = join(CWD, fileName);
-
         /* The added file must exist. */
         if (!addFile.exists()) {
             System.out.println("File does not exist.");
             return;
         }
-
         /* The text of added file. */
         String addFileText = readContentsAsString(addFile);
-        /* The byte[] of addFile. */
-        byte[] addFileByte = serialize(addFileText);
-        /* The sha1 of addFile. */
-        String addFileSha1 = sha1((Object) addFileByte);
 
         /* Read stagedArea object from index. */
         File index = join(GITLET_DIR, "index");
         StagedArea stagedArea = readObject(index, StagedArea.class);
 
-        /* Judge if file is changed. */
-        if (!stagedArea.addition.containsKey(fileName)) {
-            stagedArea.addition.put(fileName, addFileText);
-        } else {
-            String stagedFileText = stagedArea.addition.get(fileName);
-            byte[] stagedFileByte = serialize(stagedFileText);
-            String stagedFileSha1 = sha1((Object) stagedFileByte);
-            if (!stagedFileSha1.equals(addFileSha1)) {
-               stagedArea.addition.put(fileName, addFileText);
+        /* Stage file. */
+        stagedArea.addition.put(fileName, addFileText);
+
+        /* Read current commit of head branch. */
+        Commit currentCommit = readHeadBranchCommitObject();
+        /* Judge if text of current commit is equal to added txt. */
+        if (currentCommit.files.containsKey(fileName)) {
+            /* Read file text of current commit from blob. */
+            String text = readCommitFileBlob(currentCommit, fileName);
+
+            /* If text of current commit is equal to added text, do not stage. */
+            if (text.equals(addFileText)) {
+                stagedArea.addition.remove(fileName);
+            }
+        }
+
+        /* 如果暂存的内容和删除的内容相同，则取消暂存和取消删除。 */
+        if (stagedArea.removal.containsKey(fileName)) {
+            if (stagedArea.removal.get(fileName).equals(addFileText)) {
+                stagedArea.addition.remove(fileName);
+                stagedArea.removal.remove(fileName);
             }
         }
 
@@ -117,7 +151,7 @@ public class Repository {
 
     public static void commit(String message) {
         /* Return if there is no message of new commit. */
-        if (message == null) {
+        if (message == null || message.isEmpty()) {
             System.out.println("Please enter a commit message.");
             return;
         }
@@ -126,11 +160,12 @@ public class Repository {
         Commit newCommit = new Commit(message);
 
         /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
+        String branch = readHeadBranch();
+
         /* Read parent commit of current branch. */
-        File branchFile = join(BRANCH_DIR, head);
+        File branchFile = join(BRANCH_DIR, branch);
         String parentCommitSha1 = readContentsAsString(branchFile);
+
         File parentCommitFile = join(COMMIT_DIR, parentCommitSha1);
         Commit parentCommit = readObject(parentCommitFile, Commit.class);
 
@@ -139,7 +174,7 @@ public class Repository {
         StagedArea stagedArea = readObject(index, StagedArea.class);
 
         /* Return if no changes added to the commit. */
-        if (stagedArea.addition.isEmpty()) {
+        if (stagedArea.addition.isEmpty() && stagedArea.removal.isEmpty()) {
             System.out.println("No changes added to the commit.");
             return;
         }
@@ -164,7 +199,7 @@ public class Repository {
         }
 
         /* Iterate all removed files. */
-        for (String fileName: stagedArea.removal) {
+        for (String fileName: stagedArea.removal.keySet()) {
             newCommit.files.remove(fileName);
         }
 
@@ -188,17 +223,8 @@ public class Repository {
     }
 
     public static void rm(String fileName) {
-        /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
-
-        /* Read commit of current branch. */
-        File branchFile = join(BRANCH_DIR, head);
-        String currentCommitSha1 = readContentsAsString(branchFile);
-
-        /* Read current commit. */
-        File currentCommitFile = join(COMMIT_DIR, currentCommitSha1);
-        Commit currentCommit = readObject(currentCommitFile, Commit.class);
+        /* Read branch commit object of head. */
+        Commit currentCommit = readHeadBranchCommitObject();
 
         /* Read staged area. */
         File index = join(GITLET_DIR, "index");
@@ -212,7 +238,7 @@ public class Repository {
 
         /* If the file is tracked. */
         if (currentCommit.files.containsKey(fileName)) {
-            stagedArea.removal.add(fileName);
+            stagedArea.removal.put(fileName, currentCommit.files.get(fileName));
             File rmFile = join(CWD, fileName);
             restrictedDelete(rmFile);
         }
@@ -224,12 +250,13 @@ public class Repository {
         writeObject(index, stagedArea);
     }
 
+
     public static void log() {
         /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
+        String branch = readHeadBranch();
+
         /* Read parent commit of current branch. */
-        File branchFile = join(BRANCH_DIR, head);
+        File branchFile = join(BRANCH_DIR, branch);
         String currentCommitSha1 = readContentsAsString(branchFile);
 
         /* Read current commit. */
@@ -255,28 +282,36 @@ public class Repository {
     }
 
     public static void globalLog() {
+        /* Print all commits of current branch. */
+        log();
+
+        /* Read branch commit object of head. */
+        Commit currentCommit = readHeadBranchCommitObject();
+
         /* Read commit directory. */
         File commitDirectory = join(COMMIT_DIR);
         /* Read all file names. */
         List<String> fileNames = plainFilenamesIn(commitDirectory);
 
+        /* Return if no commits. */
         if (fileNames == null) { return; }
+        for (String fileName: fileNames) {
+            /* If commit is not current commit, print. */
+            if (currentCommit.files.containsKey(fileName)) {
+                continue;
+            }
 
-        for (String str: fileNames) {
-            File file = join(COMMIT_DIR, str);
+            /* Iterates all commits. */
+            File file = join(COMMIT_DIR, fileName);
             Commit commit = readObject(file, Commit.class);
 
-            /* Filter initial commit. */
-            if (commit.message.equals("initial commit")) { continue; }
-
-            /* Print global log. */
             System.out.println("===");
-            System.out.println("commit " + str);
-            if (commit.parent.size() != 1) {
+            System.out.println("commit " + fileName);
+            if (commit.parent != null && commit.parent.size() == 2) {
                 System.out.println("Merge: " + commit.parent.get(0).substring(0, 7)
                         + " " + commit.parent.get(1).substring(0, 7));
             }
-            System.out.printf(Locale.US, "Date: %tc\n", commit.timestamp);
+            System.out.printf("Date: %s\n", commit.time());
             System.out.println(commit.message + "\n");
         }
     }
@@ -291,23 +326,30 @@ public class Repository {
         if (fileNames == null) { return; }
 
         /* Iterate all commits. */
-        for (String str : fileNames) {
-            File file = join(COMMIT_DIR, str);
+        boolean flag = false;
+        for (String fileName: fileNames) {
+            File file = join(COMMIT_DIR, fileName);
             Commit commit = readObject(file, Commit.class);
 
             /* Filter initial commit. */
             if (commit.message.equals(commitMessage)) {
-                System.out.println(str);
+                System.out.println(fileName);
+                flag = true;
             }
+        }
+
+        /*  If no such commit exists, prints the error message. */
+        if (!flag) {
+            System.out.println("Found no commit with that message.");
         }
     }
 
     public static void status() {
         /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
+        String currentBranch = readHeadBranch();
+
         System.out.println("=== Branches ===");
-        System.out.println("*" + head);
+        System.out.println("*" + currentBranch);
 
         /* Read .gitlet/branch directory. */
         File branchDirectory = join(BRANCH_DIR);
@@ -317,7 +359,7 @@ public class Repository {
         /* Print all other branches. */
         if (branches != null) {
             for (String branch: branches) {
-                if (!branch.equals(head)) {
+                if (!branch.equals(currentBranch)) {
                     System.out.println(branch);
                 }
             }
@@ -337,7 +379,7 @@ public class Repository {
 
         /* Read removal files. */
         System.out.println("=== Removed Files ===");
-        for (String file: stagedArea.removal) {
+        for (String file: stagedArea.removal.keySet()) {
             System.out.println(file);
         }
         System.out.println();
@@ -361,17 +403,8 @@ public class Repository {
     }
 
     public static void checkout_fileName(String fileName) {
-        /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
-
-        /* Read commit of current branch. */
-        File branchFile = join(BRANCH_DIR, head);
-        String currentCommitSha1 = readContentsAsString(branchFile);
-
-        /* Read current commit. */
-        File currentCommitFile = join(COMMIT_DIR, currentCommitSha1);
-        Commit currentCommit = readObject(currentCommitFile, Commit.class);
+        /* Read branch commit object of head. */
+        Commit currentCommit = readHeadBranchCommitObject();
 
         /* If the file does not exist in the previous commit, abort. */
         if (!currentCommit.files.containsKey(fileName)) {
@@ -409,8 +442,7 @@ public class Repository {
 
     public static void checkout_branchName(String branchName) {
         /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
+        String currentBranch = readHeadBranch();
 
         /* Read branch. */
         File branchFile = join(BRANCH_DIR, branchName);
@@ -421,14 +453,13 @@ public class Repository {
         }
 
         /* If that branch is the current branch, print. */
-        String currentBranch = readContentsAsString(headFile);
         if (currentBranch.equals(branchName)) {
             System.out.println("No need to checkout the current branch.");
             return;
         }
-        /* Read commit object from current branch. */
-        File currentBranchCommit = join(COMMIT_DIR, head);
-        Commit currentCommit = readObject(currentBranchCommit, Commit.class);
+
+        /* Read branch commit object of head. */
+        Commit currentCommit = readHeadBranchCommitObject();
 
         /* Read commit object from given branch. */
         String givenBranchSha1 = readContentsAsString(branchFile);
@@ -446,6 +477,15 @@ public class Repository {
             checkoutHelper(fileName, givenCommit);
         }
 
+        /* Delete files that not exits in given commit. */
+        List<String> fileNames = plainFilenamesIn(CWD);
+        for (String fileName: fileNames) {
+            if (!givenCommit.files.containsKey(fileName)) {
+                File file = join(CWD, fileName);
+                restrictedDelete(file);
+            }
+        }
+
         /* Read the staged area. */
         File index = join(GITLET_DIR, "index");
         StagedArea stagedArea = readObject(index, StagedArea.class);
@@ -454,6 +494,9 @@ public class Repository {
         stagedArea.addition.clear();
         stagedArea.removal.clear();
         writeObject(index, stagedArea);
+
+        File headFile = join(GITLET_DIR, "head");
+        writeContents(headFile, branchName);
     }
 
 
@@ -466,11 +509,10 @@ public class Repository {
         }
 
         /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
+        String currentBranch = readHeadBranch();
 
         /* Read commit of current branch. */
-        File currentBranchFile = join(BRANCH_DIR, head);
+        File currentBranchFile = join(BRANCH_DIR, currentBranch);
         String currentCommitSha1 = readContentsAsString(currentBranchFile);
 
         /* Store sha1 of current commit to new branch file. */
@@ -478,6 +520,7 @@ public class Repository {
     }
 
     public static void rm_branch(String branchName){
+        /* If a branch with the given name does not exist, aborts. */
         File rmBranchFile = join(BRANCH_DIR, branchName);
         if (!rmBranchFile.exists()) {
             System.out.println("A branch with that name does not exist.");
@@ -485,16 +528,14 @@ public class Repository {
         }
 
         /* Read branch from HEAD. */
-        File headFile = join(GITLET_DIR, "HEAD");
-        String head = readContentsAsString(headFile);
-
-        if (branchName.equals(head)) {
+        String currentBranch = readHeadBranch();
+        if (branchName.equals(currentBranch)) {
             System.out.println("Cannot remove the current branch.");
             return;
         }
 
         /* Remove branch. */
-        restrictedDelete(rmBranchFile);
+        rmBranchFile.delete();
     }
 
     public static String check_commitId(String commitId) {
@@ -515,6 +556,7 @@ public class Repository {
 
         return commitId;
     }
+
     public static void reset(String commitId) {
         /* Read commit object from given branch. */
         File givenCommitFile = join(COMMIT_DIR, commitId);

@@ -44,13 +44,23 @@ public class Main {
                 break;
             case "checkout":
                 if (args.length == 3) {
+                    if (!args[1].equals("--")) {
+                        System.out.println("Incorrect operands.");
+                        break;
+                    }
                     Repository.checkout_fileName(args[2]);
                 } else if (args.length == 4) {
+                    if (!args[2].equals("--")) {
+                        System.out.println("Incorrect operands.");
+                        break;
+                    }
                     Repository.checkout_commitId_fileName(args[1], args[3]);
                 } else if (args.length == 2) {
                     Repository.checkout_branchName(args[1]);
                 }
-//                Repository.checkout(args);
+                break;
+            case "branch":
+                Repository.branch(args[1]);
                 break;
             case "rm-branch":
                 Repository.rm_branch(args[1]);
