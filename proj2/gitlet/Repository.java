@@ -125,7 +125,16 @@ public class Repository {
         stagedArea.addition.put(fileName, addFileText);
 
         /* Read current commit of head branch. */
-        Commit currentCommit = readHeadBranchCommitObject();
+//        Commit currentCommit = readHeadBranchCommitObject();
+        File headFile = join(GITLET_DIR, "head");
+        String branch = readContentsAsString(headFile);
+
+        File branchFile = join(BRANCH_DIR, branch);
+        String commitBranchSha1 = readContentsAsString(branchFile);
+
+        File commitBranchFile = join(COMMIT_DIR, commitBranchSha1);
+        Commit currentCommit = readObject(commitBranchFile, Commit.class);
+
         /* Judge if text of current commit is equal to added txt. */
         if (currentCommit.files.containsKey(fileName)) {
             /* Read file text of current commit from blob. */
