@@ -1,6 +1,8 @@
 package gitlet;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 
@@ -598,6 +600,166 @@ public class Repository {
         for (String file: files) {
             if (!givenCommit.files.containsKey(file)) {
                 restrictedDelete(file);
+            }
+        }
+    }
+
+    /* Find split point. */
+    public static String findSplitPoint(String branchCommitSha1, String givenBranchCommitSha1) {
+        HashMap<String, Integer> map = new HashMap<>();
+        File branchCommitFile = join(COMMIT_DIR, branchCommitSha1);
+        Commit branchCommit = readObject(branchCommitFile, Commit.class);
+
+        while (branchCommit != null) {
+            map.put(branchCommitSha1, 1);
+
+            if (branchCommit.parent == null) { break; }
+            branchCommitSha1 = branchCommit.parent.get(0);
+            branchCommitFile = join(COMMIT_DIR, branchCommitSha1);
+            branchCommit = readObject(branchCommitFile, Commit.class);
+        }
+
+        File givenBranchCommitFile = join(COMMIT_DIR, givenBranchCommitSha1);
+        Commit givenBranchCommit = readObject(givenBranchCommitFile, Commit.class);
+
+        while (givenBranchCommit != null) {
+            if (map.containsKey(givenBranchCommitSha1)) {
+                return givenBranchCommitSha1;
+            }
+
+            if (givenBranchCommit.parent == null) { break; }
+            givenBranchCommitSha1 = givenBranchCommit.parent.get(0);
+            givenBranchCommitFile = join(COMMIT_DIR, givenBranchCommitSha1);
+            givenBranchCommit= readObject(givenBranchCommitFile, Commit.class);
+        }
+
+        return null;
+    }
+    private static String commitFileText(Commit commit, String fileName) {
+        if (!commit.files.containsKey(fileName)) {
+            return null;
+        }
+
+        /* Get sha1 of current commit about file. */
+        String fileBlobSha1 = commit.files.get(fileName);
+
+        /* Read text from current commit. */
+        File fileBlob = join(BlOB_DIR, fileBlobSha1);
+        Blobs blob = readObject(fileBlob, Blobs.class);
+        return blob.text;
+    }
+
+
+    public static void merge(String givenBranch) {
+        String branchCommitSha1= readHeadBranchCommitSha1();
+
+        File givenBranchFile = join(BRANCH_DIR, givenBranch);
+        String givenBranchCommitSha1 = readContentsAsString(givenBranchFile);
+
+        /* Find split point. */
+        String splitPointCommitSha1 = findSplitPoint(branchCommitSha1, givenBranchCommitSha1);
+
+        assert splitPointCommitSha1 != null;
+        if (splitPointCommitSha1.equals(givenBranchCommitSha1)) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            return;
+        }
+
+        if (splitPointCommitSha1.equals(branchCommitSha1)) {
+            System.out.println("Current branch fast-forwarded.");
+            return;
+        }
+
+        File splitPointCommitFile = join(COMMIT_DIR, splitPointCommitSha1);
+        File branchCommitFile = join(COMMIT_DIR, branchCommitSha1);
+        File givenBranchCommitFile = join(COMMIT_DIR, givenBranchCommitSha1);
+        Commit splitPointCommit= readObject(splitPointCommitFile, Commit.class);
+        Commit branchCommit = readObject(branchCommitFile, Commit.class);
+        Commit givenBranchCommit = readObject(givenBranchCommitFile, Commit.class);
+
+        HashSet<String> commitFiles = new HashSet<>();
+
+        for (String fileName: splitPointCommit.files.keySet()) {
+            commitFiles.add(fileName);
+        }
+        for (String fileName: branchCommit.files.keySet()) {
+            commitFiles.add(fileName);
+        }
+        for (String fileName: givenBranchCommit.files.keySet()) {
+            commitFiles.add(fileName);
+        }
+
+        for (String fileName: commitFiles) {
+            String splitPointCommitText = commitFileText(splitPointCommit, fileName);
+            String branchCommitText = commitFileText(branchCommit, fileName);
+            String givenBranchCommitText = commitFileText(givenBranchCommit, fileName);
+
+            /* 任何在分割点不存在且仅存在于当前分支中的文件都应保持原样 */
+            if (splitPointCommitText == null && branchCommitText != null && givenBranchCommitText == null) {
+                continue;
+            }
+
+            /* 任何在分割点不存在并且仅存在于给定分支中的文件都应被检出并暂存 */
+            if (splitPointCommitText == null && branchCommitText == null && givenBranchCommitText != null) {
+                checkout_commitId_fileName(givenBranchCommitSha1, fileName);
+                add(fileName);
+            }
+
+            /* 任何存在于分割点、在当前分支中未修改、在给定分支中不存在的文件都应被删除（并且不被跟踪）*/
+            if (splitPointCommitText != null && branchCommitText != null && givenBranchCommitText == null) {
+                if (splitPointCommitText.equals(branchCommitText)) {
+                    rm(fileName);
+                } else {
+                    File file = join(CWD, fileName);
+                    writeContents(file, "<<<<<<< HEAD\n");
+                    writeContents(file, branchCommitText);
+                    writeContents(file, "\n=======");
+                    writeContents(file, "\n>>>>>>>");
+                }
+            }
+
+            /* 任何存在于分割点、在指定分支中未修改且在当前分支中不存在的文件都应保持不存在状态 */
+            if (splitPointCommitText != null &&  branchCommitText == null && givenBranchCommitText != null ) {
+                    if (!splitPointCommitText.equals(givenBranchCommitText)) {
+                        File file = join(CWD, fileName);
+                        writeContents(file, "<<<<<<< HEAD\n");
+                        writeContents(file, givenBranchCommitText);
+                        writeContents(file, "\n=======");
+                        writeContents(file, "\n>>>>>>>");
+                    }
+            }
+
+            /* 任何自分割点以来在给定分支中被修改过，但在当前分支中未被修改过的文件，
+                都应更改为其在给定分支中的版本（从给定分支前端的提交签出）。
+                然后，这些文件都将自动暂存。需要澄清的是，如果某个文件“自分割点以来在给定分支中被修改过”，
+                则意味着该文件在给定分支前端提交中的版本与文件在分割点的版本内容不同。记住：blob 是内容可寻址的！
+            */
+            if (branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
+                checkout_commitId_fileName(givenBranchCommitSha1, fileName);
+                add(fileName);
+            }
+
+            /* 任何在当前分支和指定分支中以相同方式修改的文件
+            （例如，两个文件现在具有相同的内容或都被删除）在合并过程中保持不变。
+            如果某个文件从当前分支和指定分支中都被删除，但工作目录中存在同名文件，
+            则该文件将保持不变，并且在合并过程中仍然不可见（既不被跟踪也不被暂存）。
+             */
+            if (!branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
+                if (branchCommitText.equals(givenBranchCommitText)) {
+                    continue;
+                } else {
+                    /* 处理冲突*/
+                    File file = join(CWD, fileName);
+                    writeContents(file, "<<<<<<< HEAD\n");
+                    writeContents(file, branchCommitText);
+                    writeContents(file, "\n=======");
+                    writeContents(file, givenBranchCommitText);
+                    writeContents(file, "\n>>>>>>>");
+                }
+            }
+            /* 自分割点以来，在当前分支中已修改但在给定分支中未修改的任何文件都应保持原样 */
+            if (!branchCommitText.equals(splitPointCommitText) && givenBranchCommitText.equals(splitPointCommitText)) {
+                continue;
             }
         }
     }
