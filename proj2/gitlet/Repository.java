@@ -25,8 +25,6 @@ public class Repository {
      * variable is used. We've provided two examples for you.
      */
 
-    /**  The HEAD pointer. */
-    public static String HEAD;
     /** The current working directory. */
     public static final File CWD = new File(System.getProperty("user.dir"));
     /** The .gitlet directory. */
@@ -81,27 +79,27 @@ public class Repository {
     }
 
     /* Return branch name of head. */
-    public static String readHeadBranch() {
+    private static String readHeadBranch() {
         File headFile = join(GITLET_DIR, "head");
         return readContentsAsString(headFile);
     }
 
     /* Return branch commit sha1 of head. */
-    public static String readHeadBranchCommitSha1() {
+    private static String readHeadBranchCommitSha1() {
         String currentBranch = readHeadBranch();
         File currentBranchFile = join(BRANCH_DIR, currentBranch);
         return readContentsAsString(currentBranchFile);
     }
 
     /* Read branch commit object of head. */
-    public static Commit readHeadBranchCommitObject() {
+    private static Commit readHeadBranchCommitObject() {
         String currentCommitSha1 = readHeadBranchCommitSha1();
         File currentCommitFile = join(COMMIT_DIR, currentCommitSha1);
         return readObject(currentCommitFile, Commit.class);
     }
 
     /* Read file text of commit from blob. */
-    public static String readCommitFileBlob(Commit commit, String fileName){
+    private static String readCommitFileBlob(Commit commit, String fileName){
         String fileBlobSha1 = commit.files.get(fileName);
         File blobFile =  join(BlOB_DIR, fileBlobSha1);
         Blobs blob = readObject(blobFile, Blobs.class);
@@ -540,7 +538,7 @@ public class Repository {
         rmBranchFile.delete();
     }
 
-    public static String check_commitId(String commitId) {
+    private static String check_commitId(String commitId) {
         if (commitId.length() < 40) {
             int length = commitId.length();
             /* Read .gitlet/commit directory. */
@@ -605,7 +603,7 @@ public class Repository {
     }
 
     /* Find split point. */
-    public static String findSplitPoint(String branchCommitSha1, String givenBranchCommitSha1) {
+    private static String findSplitPoint(String branchCommitSha1, String givenBranchCommitSha1) {
         HashMap<String, Integer> map = new HashMap<>();
         File branchCommitFile = join(COMMIT_DIR, branchCommitSha1);
         Commit branchCommit = readObject(branchCommitFile, Commit.class);
@@ -635,6 +633,7 @@ public class Repository {
 
         return null;
     }
+
     private static String commitFileText(Commit commit, String fileName) {
         if (!commit.files.containsKey(fileName)) {
             return null;
