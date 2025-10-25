@@ -239,7 +239,8 @@ public class Repository {
 
         /* If the file is tracked. */
         if (currentCommit.files.containsKey(fileName)) {
-            stagedArea.removal.put(fileName, currentCommit.files.get(fileName));
+            String text = readCommitFileBlob(currentCommit, fileName);
+            stagedArea.removal.put(fileName, text);
             File rmFile = join(CWD, fileName);
             restrictedDelete(rmFile);
         }
