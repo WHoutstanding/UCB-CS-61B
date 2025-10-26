@@ -8,13 +8,13 @@ import java.util.*;
  */
 public class Commit implements Serializable {
     /** The message of this Commit. */
-    public String message;
+    private String message;
     /** The date of this Commit. */
-    public Date timestamp;
+    private Date timestamp;
     /** files the commit track. */
-    public TreeMap<String, String> files;
-    /* Parent commit. */
-    public List<String> parent;
+    private TreeMap<String, String> files;
+    /** Parent commit. */
+    private List<String> parent;
 
     public Commit(String message) {
         this.message = message;
@@ -37,5 +37,25 @@ public class Commit implements Serializable {
 
         formatter.close();
         return sb.toString();
+    }
+
+    public String message() {
+        return this.message;
+    }
+
+    public Date timestamp() {
+        return this.timestamp;
+    }
+
+    public TreeMap<String, String> files() {
+        return this.files;
+    }
+    /* Parent commit. */
+    public List<String> parent() {
+        return this.parent;
+    }
+
+    public void passFiles(TreeMap<String, String> file) {
+        this.files = file;
     }
 }
