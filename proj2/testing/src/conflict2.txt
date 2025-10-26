@@ -1,5 +1,4 @@
-<<<<<<< master
+<<<<<<< HEAD
 Another wug.
 =======
-This is a wug.
 >>>>>>>
