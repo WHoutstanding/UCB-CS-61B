@@ -6,7 +6,7 @@ import edu.princeton.cs.algs4.Stopwatch;
 
 public class Timing {
     public static void addFirst(Deque<Integer> deque) {
-        ArrayDeque<Integer> Ns = new ArrayDeque<>();
+        ArrayDeque<Integer> ns = new ArrayDeque<>();
         ArrayDeque<Double> times = new ArrayDeque<>();
         ArrayDeque<Integer> opCounts = new ArrayDeque<>();
         int dequeLength = 1000;
@@ -14,7 +14,7 @@ public class Timing {
             if (p > 0) {
                 dequeLength *= 2;
             }
-            Ns.addLast(dequeLength);
+            ns.addLast(dequeLength);
             Stopwatch sw = new Stopwatch();
             for (int i = 0; i < dequeLength; i++) {
                 deque.addFirst(1);
@@ -23,15 +23,16 @@ public class Timing {
             times.addLast(timeInSeconds);
             opCounts.addLast(dequeLength);
         }
-        printTable(String.format("%s addFirst", deque.getClass()), Ns, times, opCounts);
+        printTable(String.format("%s addFirst", deque.getClass()), ns, times, opCounts);
     }
 
-    private static void printTable(String opName, ArrayDeque<Integer> Ns, ArrayDeque<Double> times, ArrayDeque<Integer> opCounts) {
+    private static void printTable(String opName, ArrayDeque<Integer> ns,
+                                   ArrayDeque<Double> times, ArrayDeque<Integer> opCounts) {
         System.out.println(opName + "\n");
         System.out.printf("%12s %12s %12s %12s\n", "N", "time (s)", "# ops", "microsec/op");
         System.out.print("------------------------------------------------------------\n");
-        for (int i = 0; i < Ns.size(); i += 1) {
-            int N = Ns.get(i);
+        for (int i = 0; i < ns.size(); i += 1) {
+            int N = ns.get(i);
             double time = times.get(i);
             int opCount = opCounts.get(i);
             double timePerOp = time / opCount * 1e6;

@@ -168,21 +168,4 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         }
     }
 
-    private static void main(String[] args) {
-        int n = 99;
-
-        ArrayDeque<Integer> ad1 = new ArrayDeque<>();
-        for (int i = 0; i <= n; i++) {
-            ad1.addLast(i);
-        }
-
-        ArrayDeque<Integer> ad2 = new ArrayDeque<>();
-        for (int i = n; i >= 0; i--) {
-            ad2.addFirst(i);
-        }
-
-        ad1.printDeque();
-
-        System.out.println(ad1.equals(ad2));
-    }
 }
