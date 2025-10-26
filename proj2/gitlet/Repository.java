@@ -692,7 +692,7 @@ public class Repository {
         return blob.text();
     }
 
-    private static Commit mergeHelper(String commitSha1) {
+    private static Commit readCommitObject(String commitSha1) {
         File commitFile = join(COMMIT_DIR, commitSha1);
         return readObject(commitFile, Commit.class);
     }
@@ -730,24 +730,88 @@ public class Repository {
         return true;
     }
 
+    /* Merge all files. */
+    private static void mergeFiles(HashSet<String> commitFiles, String branchCommitSha1,
+                                   String givenBranchCommitSha1, String splitPointCommitSha1) {
+        /* Read commit object. */
+        Commit splitPointCommit = readCommitObject(splitPointCommitSha1);
+        Commit branchCommit = readCommitObject(branchCommitSha1);
+        Commit givenBranchCommit = readCommitObject(givenBranchCommitSha1);
+
+        /* Check every file. */
+        for (String fileName: commitFiles) {
+            String splitPointCommitText = commitFileText(splitPointCommit, fileName);
+            String branchCommitText = commitFileText(branchCommit, fileName);
+            String givenBranchCommitText = commitFileText(givenBranchCommit, fileName);
+
+            if (splitPointCommitText == null && branchCommitText == null
+                    && givenBranchCommitText != null) {
+                checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
+                add(fileName);
+            }
+
+            if (splitPointCommitText != null && branchCommitText != null
+                    && givenBranchCommitText == null) {
+                if (splitPointCommitText.equals(branchCommitText)) {
+                    rm(fileName);
+                } else {
+                    System.out.println("Encountered a merge conflict.");
+                    File file = join(CWD, fileName);
+                    writeContents(file, "<<<<<<< HEAD" + "\n" + branchCommitText
+                            + "=======" + "\n" + ">>>>>>>\n");
+                }
+            }
+
+            if (branchCommitText == null || givenBranchCommitText == null) {
+                continue;
+            }
+
+            if (branchCommitText.equals(splitPointCommitText)
+                    && !givenBranchCommitText.equals(splitPointCommitText)) {
+                checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
+                add(fileName);
+            }
+
+            if (!branchCommitText.equals(splitPointCommitText)
+                    && !givenBranchCommitText.equals(splitPointCommitText)) {
+                if (!branchCommitText.equals(givenBranchCommitText)) {
+                    System.out.println("Encountered a merge conflict.");
+                    File file = join(CWD, fileName);
+                    writeContents(file, "<<<<<<< HEAD" + "\n"
+                            + branchCommitText + "=======" + "\n"
+                            + givenBranchCommitText  + ">>>>>>>\n");
+                }
+            }
+        }
+    }
+
     public static void merge(String givenBranch) {
+        /* Check given branch. */
         if (!mergeChecker(givenBranch)) {
             return;
         }
+
+        /* Read commit id. */
         String branch = readHeadBranch();
         String branchCommitSha1 = readHeadBranchCommitSha1();
         File givenBranchFile = join(BRANCH_DIR, givenBranch);
         String givenBranchCommitSha1 = readContentsAsString(givenBranchFile);
+
         /* Find split point. */
         String splitPointCommitSha1 = findLCA(branchCommitSha1, givenBranchCommitSha1);
-        Commit splitPointCommit = mergeHelper(splitPointCommitSha1);
-        Commit branchCommit = mergeHelper(branchCommitSha1);
-        Commit givenBranchCommit = mergeHelper(givenBranchCommitSha1);
 
+        /* Read commit object. */
+        Commit splitPointCommit = readCommitObject(splitPointCommitSha1);
+        Commit branchCommit = readCommitObject(branchCommitSha1);
+        Commit givenBranchCommit = readCommitObject(givenBranchCommitSha1);
+
+        /* Collect all files. */
         HashSet<String> commitFiles = new HashSet<>();
         commitFiles.addAll(splitPointCommit.files().keySet());
         commitFiles.addAll(branchCommit.files().keySet());
         commitFiles.addAll(givenBranchCommit.files().keySet());
+
+        /* Jude if there are untracked files. */
         List<String> files = plainFilenamesIn(CWD);
         File stagedAreaFile = join(GITLET_DIR, "index");
         StagedArea stagedArea =  readObject(stagedAreaFile, StagedArea.class);
@@ -760,52 +824,25 @@ public class Repository {
                 return;
             }
         }
+
+        /* Return if staged area is not empty. */
         if (!stagedArea.addition.isEmpty() || !stagedArea.removal.isEmpty()) {
             System.out.println("You have uncommitted changes.");
             return;
         }
-        for (String fileName: commitFiles) {
-            String splitPointCommitText = commitFileText(splitPointCommit, fileName);
-            String branchCommitText = commitFileText(branchCommit, fileName);
-            String givenBranchCommitText = commitFileText(givenBranchCommit, fileName);
-            if (splitPointCommitText == null && branchCommitText == null
-                    && givenBranchCommitText != null) {
-                checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
-                add(fileName);
-            }
-            if (splitPointCommitText != null && branchCommitText != null
-                    && givenBranchCommitText == null) {
-                if (splitPointCommitText.equals(branchCommitText)) {
-                    rm(fileName);
-                } else {
-                    System.out.println("Encountered a merge conflict.");
-                    File file = join(CWD, fileName);
-                    writeContents(file, "<<<<<<< HEAD" + "\n" + branchCommitText
-                            + "=======" + "\n" + ">>>>>>>\n");
-                }
-            }
-            if (branchCommitText == null || givenBranchCommitText == null) {
-                continue;
-            }
-            if (branchCommitText.equals(splitPointCommitText)
-                    && !givenBranchCommitText.equals(splitPointCommitText)) {
-                checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
-                add(fileName);
-            }
-            if (!branchCommitText.equals(splitPointCommitText)
-                    && !givenBranchCommitText.equals(splitPointCommitText)) {
-                if (!branchCommitText.equals(givenBranchCommitText)) {
-                    System.out.println("Encountered a merge conflict.");
-                    File file = join(CWD, fileName);
-                    writeContents(file, "<<<<<<< HEAD" + "\n"
-                            + branchCommitText + "=======" + "\n"
-                            + givenBranchCommitText  + ">>>>>>>\n");
-                }
-            }
-        }
+
+        /* Merge all files. */
+        mergeFiles(commitFiles, branchCommitSha1,
+                givenBranchCommitSha1, splitPointCommitSha1);
+
+        /* Create new commit. */
         commit("Merged " + givenBranch +  " into " + branch + ".");
+
+        /* Add givenBranch commit as parent.*/
         Commit mergeCommit = readHeadBranchCommitObject();
         mergeCommit.parent().add(givenBranchCommitSha1);
+
+        /* Store new commit object. */
         String mergeCommitSha1 = readHeadBranchCommitSha1();
         File mergeCommitFile = join(COMMIT_DIR, mergeCommitSha1);
         writeObject(mergeCommitFile, mergeCommit);
