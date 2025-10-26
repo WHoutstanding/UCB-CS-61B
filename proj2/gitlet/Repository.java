@@ -652,6 +652,7 @@ public class Repository {
 
 
     public static void merge(String givenBranch) {
+        String branch = readHeadBranch();
         String branchCommitSha1= readHeadBranchCommitSha1();
 
         File givenBranchFile = join(BRANCH_DIR, givenBranch);
@@ -735,7 +736,7 @@ public class Repository {
                 然后，这些文件都将自动暂存。需要澄清的是，如果某个文件“自分割点以来在给定分支中被修改过”，
                 则意味着该文件在给定分支前端提交中的版本与文件在分割点的版本内容不同。记住：blob 是内容可寻址的！
             */
-            if (branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
+            if (branchCommitText != null && givenBranchCommitText != null && branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
                 checkout_commitId_fileName(givenBranchCommitSha1, fileName);
                 add(fileName);
             }
@@ -745,7 +746,7 @@ public class Repository {
             如果某个文件从当前分支和指定分支中都被删除，但工作目录中存在同名文件，
             则该文件将保持不变，并且在合并过程中仍然不可见（既不被跟踪也不被暂存）。
              */
-            if (!branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
+            if (branchCommitText != null && givenBranchCommitText != null && !branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
                 if (branchCommitText.equals(givenBranchCommitText)) {
                     continue;
                 } else {
@@ -759,9 +760,16 @@ public class Repository {
                 }
             }
             /* 自分割点以来，在当前分支中已修改但在给定分支中未修改的任何文件都应保持原样 */
-            if (!branchCommitText.equals(splitPointCommitText) && givenBranchCommitText.equals(splitPointCommitText)) {
+            if (branchCommitText != null && givenBranchCommitText != null && !branchCommitText.equals(splitPointCommitText) && givenBranchCommitText.equals(splitPointCommitText)) {
                 continue;
             }
         }
+        commit("Merged " + givenBranch +  " into " + branch);
+        Commit mergeCommit = readHeadBranchCommitObject();
+        mergeCommit.parent.add(givenBranchCommitSha1);
+
+        String mergeCommitSha1 = readHeadBranchCommitSha1();
+        File mergeCommitFile = join(COMMIT_DIR, mergeCommitSha1);
+        writeObject(mergeCommitFile, mergeCommit);
     }
 }
