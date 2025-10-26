@@ -2,28 +2,35 @@ package gitlet;
 
 import java.io.File;
 
-/** Driver class for Gitlet, a subset of the Git version-control system.
- *  @author TODO
- */
-public class Main {
+import static gitlet.Utils.join;
 
+/** Driver class for Gitlet, a subset of the Git version-control system.
+ *  @author Wang hao
+ */
+
+public class Main {
     /** Usage: java gitlet.Main ARGS, where ARGS contains
      *  <COMMAND> <OPERAND1> <OPERAND2> ... 
      */
+    public static final File CWD = new File(System.getProperty("user.dir"));
+    public static final File GITLET_DIR = join(CWD, ".gitlet");
+
     public static void main(String[] args) {
-        // TODO: what if args is empty?
         String firstArg = args[0];
-        switch(firstArg) {
+        if (!firstArg.equals("init")) {
+            if (!GITLET_DIR.exists()) {
+                System.out.println("Not in an initialized Gitlet directory.");
+                return;
+            }
+        }
+
+        switch (firstArg) {
             case "init":
-                // TODO: handle the `init` command
-                // Branches? Here we needto initalize a master branch and have it point to inital commit
                 Repository.init();
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command
                 Repository.add(args[1]);
                 break;
-            // TODO: FILL THE REST IN
             case "commit":
                 Repository.commit(args[1]);
                 break;
@@ -48,28 +55,31 @@ public class Main {
                         System.out.println("Incorrect operands.");
                         break;
                     }
-                    Repository.checkout_fileName(args[2]);
+                    Repository.checkoutFileName(args[2]);
                 } else if (args.length == 4) {
                     if (!args[2].equals("--")) {
                         System.out.println("Incorrect operands.");
                         break;
                     }
-                    Repository.checkout_commitId_fileName(args[1], args[3]);
+                    Repository.checkoutCommitIdFileName(args[1], args[3]);
                 } else if (args.length == 2) {
-                    Repository.checkout_branchName(args[1]);
+                    Repository.checkoutBranchName(args[1]);
                 }
                 break;
             case "branch":
                 Repository.branch(args[1]);
                 break;
             case "rm-branch":
-                Repository.rm_branch(args[1]);
+                Repository.rmBranch(args[1]);
                 break;
             case "reset":
                 Repository.reset(args[1]);
                 break;
             case "merge":
                 Repository.merge(args[1]);
+                break;
+            default:
+                System.out.println("No command with that name exists.");
                 break;
         }
     }

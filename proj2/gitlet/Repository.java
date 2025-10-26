@@ -1,30 +1,14 @@
 package gitlet;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-
+import java.util.*;
 import static gitlet.Utils.*;
 
-// TODO: any imports you need here
-
-/** Represents a gitlet repository.
- *  TODO: It's a good idea to give a description here of what else this Class
- *  does at a high level.
- *
- *  @author TODO
+/** .gitlet repository.
+ *  @author Wang hao
  */
-public class Repository {
-    /**
-     * TODO: add instance variables here.
-     *
-     * List all instance variables of the Repository class here with a useful
-     * comment above them describing what that variable represents and how that
-     * variable is used. We've provided two examples for you.
-     */
 
+public class Repository {
     /** The current working directory. */
     public static final File CWD = new File(System.getProperty("user.dir"));
     /** The .gitlet directory. */
@@ -32,15 +16,11 @@ public class Repository {
     /** The .gitlet/commit directory. */
     public static final File COMMIT_DIR = join(GITLET_DIR, "commit");
     /** The .gitlet/blobs directory. */
-    public static final File BlOB_DIR = join(GITLET_DIR, "blob");
+    public static final File BLOB_DIR = join(GITLET_DIR, "blob");
     /** The .gitlet/branch directory. */
     public static final File BRANCH_DIR = join(GITLET_DIR, "branch");
 
-    /* TODO: fill in the rest of this class. */
     public static void init() {
-        /* TODO It will have a single branch: master, which initially points to this initial commit,
-                and master will be the current branch. */
-
         if (GITLET_DIR.exists()) {
             System.out.println("A Gitlet version-control system already exists in the current directory.");
             return;
@@ -49,7 +29,7 @@ public class Repository {
         /* Create .gitlet folder. */
         GITLET_DIR.mkdir();
         COMMIT_DIR.mkdir();
-        BlOB_DIR.mkdir();
+        BLOB_DIR.mkdir();
         BRANCH_DIR.mkdir();
 
         /* Create staged area object. */
@@ -99,9 +79,9 @@ public class Repository {
     }
 
     /* Read file text of commit from blob. */
-    private static String readCommitFileBlob(Commit commit, String fileName){
+    private static String readCommitFileBlob(Commit commit, String fileName) {
         String fileBlobSha1 = commit.files.get(fileName);
-        File blobFile =  join(BlOB_DIR, fileBlobSha1);
+        File blobFile =  join(BLOB_DIR, fileBlobSha1);
         Blobs blob = readObject(blobFile, Blobs.class);
         return blob.text;
     }
@@ -192,7 +172,7 @@ public class Repository {
             String blobSha1 = sha1((Object) blobByte);
 
             /* Write file byte to file. */
-            File blobFile = join(BlOB_DIR, blobSha1);
+            File blobFile = join(BLOB_DIR, blobSha1);
             writeObject(blobFile, blob);
 
             /* Add file to commit. */
@@ -276,7 +256,10 @@ public class Repository {
             System.out.printf("Date: %s\n", currentCommit.time());
             System.out.println(currentCommit.message + "\n");
 
-            if (currentCommit.parent == null) { break; }
+            if (currentCommit.parent == null) {
+                break;
+            }
+
             currentCommitSha1 = currentCommit.parent.get(0);
             currentCommitFile = join(COMMIT_DIR, currentCommitSha1);
             currentCommit = readObject(currentCommitFile, Commit.class);
@@ -296,7 +279,10 @@ public class Repository {
         List<String> fileNames = plainFilenamesIn(commitDirectory);
 
         /* Return if no commits. */
-        if (fileNames == null) { return; }
+        if (fileNames == null) {
+            return;
+        }
+
         for (String fileName: fileNames) {
             /* If commit is not current commit, print. */
             if (currentCommit.files.containsKey(fileName)) {
@@ -325,7 +311,9 @@ public class Repository {
         List<String> fileNames = plainFilenamesIn(commitDirectory);
 
         /* Return if this is no commit. */
-        if (fileNames == null) { return; }
+        if (fileNames == null) {
+            return;
+        }
 
         /* Iterate all commits. */
         boolean flag = false;
@@ -390,12 +378,12 @@ public class Repository {
         System.out.println("=== Untracked Files ===");
     }
 
-    private static void checkoutHelper(String fileName, Commit currentCommit) {
+    private static void readCommitFileBlob(String fileName, Commit currentCommit) {
         /* Get sha1 of current commit about file. */
         String commitFileSha1 = currentCommit.files.get(fileName);
 
         /* Read text from current commit. */
-        File blobFile = join(BlOB_DIR, commitFileSha1);
+        File blobFile = join(BLOB_DIR, commitFileSha1);
         Blobs blob = readObject(blobFile, Blobs.class);
         String text = blob.text;
 
@@ -404,7 +392,7 @@ public class Repository {
         writeContents(file, text);
     }
 
-    public static void checkout_fileName(String fileName) {
+    public static void checkoutFileName(String fileName) {
         /* Read branch commit object of head. */
         Commit currentCommit = readHeadBranchCommitObject();
 
@@ -415,12 +403,12 @@ public class Repository {
         }
 
         /* Call checkout helper function to overwrite file. */
-        checkoutHelper(fileName, currentCommit);
+        readCommitFileBlob(fileName, currentCommit);
     }
 
-    public static void checkout_commitId_fileName(String commitId, String fileName) {
+    public static void checkoutCommitIdFileName(String commitId, String fileName) {
         /* Find complete commit id. */
-        commitId = check_commitId(commitId);
+        commitId = checkCommitId(commitId);
 
         /* Read the commit file with the given commit id. */
         File currentCommitFile = join(COMMIT_DIR, commitId);
@@ -439,10 +427,10 @@ public class Repository {
         }
 
         /* Call checkout helper function to overwrite file. */
-        checkoutHelper(fileName, currentCommit);
+        readCommitFileBlob(fileName, currentCommit);
     }
 
-    public static void checkout_branchName(String branchName) {
+    public static void checkoutBranchName(String branchName) {
         /* Read branch from HEAD. */
         String currentBranch = readHeadBranch();
 
@@ -476,7 +464,7 @@ public class Repository {
             }
 
             /* Call checkout helper function to overwrite file. */
-            checkoutHelper(fileName, givenCommit);
+            readCommitFileBlob(fileName, givenCommit);
         }
 
         /* Delete files that not exits in given commit. */
@@ -521,7 +509,7 @@ public class Repository {
         writeContents(newBranchFile, currentCommitSha1);
     }
 
-    public static void rm_branch(String branchName){
+    public static void rmBranch(String branchName) {
         /* If a branch with the given name does not exist, aborts. */
         File rmBranchFile = join(BRANCH_DIR, branchName);
         if (!rmBranchFile.exists()) {
@@ -540,7 +528,7 @@ public class Repository {
         rmBranchFile.delete();
     }
 
-    private static String check_commitId(String commitId) {
+    private static String checkCommitId(String commitId) {
         if (commitId.length() < 40) {
             int length = commitId.length();
             /* Read .gitlet/commit directory. */
@@ -567,7 +555,7 @@ public class Repository {
             return;
         }
 
-        commitId = check_commitId(commitId);
+        commitId = checkCommitId(commitId);
         /* Read branch from HEAD. */
         File headFile = join(GITLET_DIR, "head");
         String head = readContentsAsString(headFile);
@@ -589,51 +577,99 @@ public class Repository {
             }
 
             /* Call checkout helper function to overwrite file. */
-            checkoutHelper(fileName, givenCommit);
+            readCommitFileBlob(fileName, givenCommit);
         }
 
-        writeObject(currentBranchFile, commitId);
+        writeContents(currentBranchFile, commitId);
 
         List<String> files = plainFilenamesIn(CWD);
 
-        if (files == null) { return; }
+        if (files == null) {
+            return;
+        }
+
         for (String file: files) {
             if (!givenCommit.files.containsKey(file)) {
                 restrictedDelete(file);
             }
         }
+
+        File stagedAreaFile = join(GITLET_DIR, "index");
+        StagedArea stagedArea = readObject(stagedAreaFile, StagedArea.class);
+        stagedArea.addition.clear();
+        stagedArea.removal.clear();
+        writeObject(stagedAreaFile, stagedArea);
     }
 
     /* Find split point. */
-    private static String findSplitPoint(String branchCommitSha1, String givenBranchCommitSha1) {
-        HashMap<String, Integer> map = new HashMap<>();
-        File branchCommitFile = join(COMMIT_DIR, branchCommitSha1);
-        Commit branchCommit = readObject(branchCommitFile, Commit.class);
-
-        while (branchCommit != null) {
-            map.put(branchCommitSha1, 1);
-
-            if (branchCommit.parent == null) { break; }
-            branchCommitSha1 = branchCommit.parent.get(0);
-            branchCommitFile = join(COMMIT_DIR, branchCommitSha1);
-            branchCommit = readObject(branchCommitFile, Commit.class);
+    public static String findLCA(String branchCommitSha1, String givenBranchCommitSha1) {
+        if (branchCommitSha1 == null || givenBranchCommitSha1 == null) {
+            return null;
         }
 
-        File givenBranchCommitFile = join(COMMIT_DIR, givenBranchCommitSha1);
-        Commit givenBranchCommit = readObject(givenBranchCommitFile, Commit.class);
+        if (branchCommitSha1.equals(givenBranchCommitSha1)) {
+            return branchCommitSha1;
+        }
 
-        while (givenBranchCommit != null) {
-            if (map.containsKey(givenBranchCommitSha1)) {
-                return givenBranchCommitSha1;
+
+        // 用于记录branchCommit的所有祖先节点
+        Set<String> ancestors1 = new HashSet<>();
+
+        // 使用BFS收集node1的所有祖先
+        Queue<String> queue = new LinkedList<>();
+        queue.offer(branchCommitSha1);
+        ancestors1.add(branchCommitSha1);
+
+        while (!queue.isEmpty()) {
+            String currentCommitSha1 = queue.poll();
+            File currentCommitFile = join(COMMIT_DIR, currentCommitSha1);
+            Commit current = readObject(currentCommitFile, Commit.class);
+
+            // 遍历父节点（最多两个）
+            if (current.parent == null) {
+                continue;
             }
 
-            if (givenBranchCommit.parent == null) { break; }
-            givenBranchCommitSha1 = givenBranchCommit.parent.get(0);
-            givenBranchCommitFile = join(COMMIT_DIR, givenBranchCommitSha1);
-            givenBranchCommit= readObject(givenBranchCommitFile, Commit.class);
+            if (current.parent.get(0) != null && ancestors1.add(current.parent.get(0))) {
+                queue.offer(current.parent.get(0));
+            }
+
+            if (current.parent.size() == 2 && ancestors1.add(current.parent.get(1))) {
+                queue.offer(current.parent.get(1));
+            }
         }
 
-        return null;
+        // 使用BFS从node2开始向上查找，第一个在ancestors1中出现的节点就是LCA
+        Queue<String> queue2 = new LinkedList<>();
+        Set<String> visited = new HashSet<>();
+        queue2.offer(givenBranchCommitSha1);
+        visited.add(givenBranchCommitSha1);
+
+        while (!queue2.isEmpty()) {
+            String currentCommitSha1 = queue2.poll();
+
+            // 如果当前节点是node1的祖先，则找到LCA
+            if (ancestors1.contains(currentCommitSha1)) {
+                return currentCommitSha1;
+            }
+
+            File currentCommitFile = join(COMMIT_DIR, currentCommitSha1);
+            Commit current = readObject(currentCommitFile, Commit.class);
+
+            if (current.parent == null) {
+                continue;
+            }
+
+            // 向上遍历父节点
+            if (current.parent.get(0) != null && visited.add(current.parent.get(0))) {
+                queue2.offer(current.parent.get(0));
+            }
+            if (current.parent.size() == 2 && visited.add(current.parent.get(1))) {
+                queue2.offer(current.parent.get(1));
+            }
+        }
+
+        return null; // 没有公共祖先
     }
 
     private static String commitFileText(Commit commit, String fileName) {
@@ -645,7 +681,7 @@ public class Repository {
         String fileBlobSha1 = commit.files.get(fileName);
 
         /* Read text from current commit. */
-        File fileBlob = join(BlOB_DIR, fileBlobSha1);
+        File fileBlob = join(BLOB_DIR, fileBlobSha1);
         Blobs blob = readObject(fileBlob, Blobs.class);
         return blob.text;
     }
@@ -653,13 +689,23 @@ public class Repository {
 
     public static void merge(String givenBranch) {
         String branch = readHeadBranch();
-        String branchCommitSha1= readHeadBranchCommitSha1();
+        String branchCommitSha1 = readHeadBranchCommitSha1();
 
         File givenBranchFile = join(BRANCH_DIR, givenBranch);
+        if (!givenBranchFile.exists()) {
+            System.out.println("A branch with that name does not exist.");
+            return;
+        }
+
         String givenBranchCommitSha1 = readContentsAsString(givenBranchFile);
 
+        if (givenBranch.equals(branch)) {
+            System.out.println("Cannot merge a branch with itself.");
+            return;
+        }
+
         /* Find split point. */
-        String splitPointCommitSha1 = findSplitPoint(branchCommitSha1, givenBranchCommitSha1);
+        String splitPointCommitSha1 = findLCA(branchCommitSha1, givenBranchCommitSha1);
 
         assert splitPointCommitSha1 != null;
         if (splitPointCommitSha1.equals(givenBranchCommitSha1)) {
@@ -669,13 +715,14 @@ public class Repository {
 
         if (splitPointCommitSha1.equals(branchCommitSha1)) {
             System.out.println("Current branch fast-forwarded.");
+            checkoutBranchName(givenBranch);
             return;
         }
 
         File splitPointCommitFile = join(COMMIT_DIR, splitPointCommitSha1);
         File branchCommitFile = join(COMMIT_DIR, branchCommitSha1);
         File givenBranchCommitFile = join(COMMIT_DIR, givenBranchCommitSha1);
-        Commit splitPointCommit= readObject(splitPointCommitFile, Commit.class);
+        Commit splitPointCommit = readObject(splitPointCommitFile, Commit.class);
         Commit branchCommit = readObject(branchCommitFile, Commit.class);
         Commit givenBranchCommit = readObject(givenBranchCommitFile, Commit.class);
 
@@ -691,10 +738,30 @@ public class Repository {
             commitFiles.add(fileName);
         }
 
+        List<String> files = plainFilenamesIn(CWD);
+
+        File stagedAreaFile = join(GITLET_DIR, "index");
+        StagedArea stagedArea =  readObject(stagedAreaFile, StagedArea.class);
+
+        for (String fileName: files) {
+            File file = join(CWD, fileName);
+            if (file.exists() && !branchCommit.files.containsKey(fileName)
+                              && !stagedArea.addition.containsKey(fileName)) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                return;
+            }
+        }
+
+        if (!stagedArea.addition.isEmpty() || !stagedArea.removal.isEmpty()) {
+            System.out.println("You have uncommitted changes.");
+            return;
+        }
+
         for (String fileName: commitFiles) {
             String splitPointCommitText = commitFileText(splitPointCommit, fileName);
             String branchCommitText = commitFileText(branchCommit, fileName);
             String givenBranchCommitText = commitFileText(givenBranchCommit, fileName);
+
 
             /* 任何在分割点不存在且仅存在于当前分支中的文件都应保持原样 */
             if (splitPointCommitText == null && branchCommitText != null && givenBranchCommitText == null) {
@@ -703,7 +770,7 @@ public class Repository {
 
             /* 任何在分割点不存在并且仅存在于给定分支中的文件都应被检出并暂存 */
             if (splitPointCommitText == null && branchCommitText == null && givenBranchCommitText != null) {
-                checkout_commitId_fileName(givenBranchCommitSha1, fileName);
+                checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
                 add(fileName);
             }
 
@@ -712,23 +779,25 @@ public class Repository {
                 if (splitPointCommitText.equals(branchCommitText)) {
                     rm(fileName);
                 } else {
+                    System.out.println("Encountered a merge conflict.");
                     File file = join(CWD, fileName);
-                    writeContents(file, "<<<<<<< HEAD\n");
-                    writeContents(file, branchCommitText);
-                    writeContents(file, "\n=======");
-                    writeContents(file, "\n>>>>>>>");
+                    writeContents(file, "<<<<<<< " + branch + "\n"
+                                                   + branchCommitText + "\n"
+                                                   + "=======" + "\n"
+                                                   + splitPointCommitText + "\n"
+                                                   + ">>>>>>>");
                 }
             }
 
             /* 任何存在于分割点、在指定分支中未修改且在当前分支中不存在的文件都应保持不存在状态 */
-            if (splitPointCommitText != null &&  branchCommitText == null && givenBranchCommitText != null ) {
-                    if (!splitPointCommitText.equals(givenBranchCommitText)) {
-                        File file = join(CWD, fileName);
-                        writeContents(file, "<<<<<<< HEAD\n");
-                        writeContents(file, givenBranchCommitText);
-                        writeContents(file, "\n=======");
-                        writeContents(file, "\n>>>>>>>");
-                    }
+            if (splitPointCommitText != null &&  branchCommitText == null && givenBranchCommitText != null) {
+                if (!splitPointCommitText.equals(givenBranchCommitText)) {
+                    File file = join(CWD, fileName);
+                    writeContents(file, "<<<<<<< HEAD\n");
+                    writeContents(file, givenBranchCommitText);
+                    writeContents(file, "\n=======");
+                    writeContents(file, "\n>>>>>>>");
+                }
             }
 
             /* 任何自分割点以来在给定分支中被修改过，但在当前分支中未被修改过的文件，
@@ -736,8 +805,10 @@ public class Repository {
                 然后，这些文件都将自动暂存。需要澄清的是，如果某个文件“自分割点以来在给定分支中被修改过”，
                 则意味着该文件在给定分支前端提交中的版本与文件在分割点的版本内容不同。记住：blob 是内容可寻址的！
             */
-            if (branchCommitText != null && givenBranchCommitText != null && branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
-                checkout_commitId_fileName(givenBranchCommitSha1, fileName);
+            if (branchCommitText != null && givenBranchCommitText != null
+                    && branchCommitText.equals(splitPointCommitText)
+                    && !givenBranchCommitText.equals(splitPointCommitText)) {
+                checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
                 add(fileName);
             }
 
@@ -746,25 +817,30 @@ public class Repository {
             如果某个文件从当前分支和指定分支中都被删除，但工作目录中存在同名文件，
             则该文件将保持不变，并且在合并过程中仍然不可见（既不被跟踪也不被暂存）。
              */
-            if (branchCommitText != null && givenBranchCommitText != null && !branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
+            if (branchCommitText != null && givenBranchCommitText != null
+                    && !branchCommitText.equals(splitPointCommitText)
+                    && !givenBranchCommitText.equals(splitPointCommitText)) {
                 if (branchCommitText.equals(givenBranchCommitText)) {
                     continue;
                 } else {
                     /* 处理冲突*/
+                    System.out.println("Encountered a merge conflict.");
                     File file = join(CWD, fileName);
-                    writeContents(file, "<<<<<<< HEAD\n");
-                    writeContents(file, branchCommitText);
-                    writeContents(file, "\n=======");
-                    writeContents(file, givenBranchCommitText);
-                    writeContents(file, "\n>>>>>>>");
+                    writeContents(file, "<<<<<<< " + branch + "\n"
+                                                    + branchCommitText + "\n"
+                                                    + "=======" + "\n"
+                                                    + givenBranchCommitText + "\n"
+                                                    + ">>>>>>>");
                 }
             }
             /* 自分割点以来，在当前分支中已修改但在给定分支中未修改的任何文件都应保持原样 */
-            if (branchCommitText != null && givenBranchCommitText != null && !branchCommitText.equals(splitPointCommitText) && givenBranchCommitText.equals(splitPointCommitText)) {
+            if (branchCommitText != null && givenBranchCommitText != null
+                    && !branchCommitText.equals(splitPointCommitText)
+                    && givenBranchCommitText.equals(splitPointCommitText)) {
                 continue;
             }
         }
-        commit("Merged " + givenBranch +  " into " + branch);
+        commit("Merged " + givenBranch +  " into " + branch + ".");
         Commit mergeCommit = readHeadBranchCommitObject();
         mergeCommit.parent.add(givenBranchCommitSha1);
 
