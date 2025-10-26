@@ -24,7 +24,8 @@ public class Repository {
 
     public static void init() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            System.out.println("A Gitlet version-control system already "
+                    + "exists in the current directory.");
             return;
         }
 
@@ -215,7 +216,8 @@ public class Repository {
         StagedArea stagedArea = readObject(stagedAreaFile, StagedArea.class);
 
         /* If the file is staged and is not tracked. */
-        if (!stagedArea.addition.containsKey(fileName) && !branchCommit.files().containsKey(fileName)) {
+        if (!stagedArea.addition.containsKey(fileName)
+                && !branchCommit.files().containsKey(fileName)) {
             System.out.println("No reason to remove the file.");
             return;
         }
@@ -462,7 +464,8 @@ public class Repository {
         for (String fileName: givenCommit.files().keySet()) {
             File file = join(CWD, fileName);
             if (file.exists() && !currentCommit.files().containsKey(fileName)) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.out.println("There is an untracked file in the way; "
+                        + "delete it, or add and commit it first.");
                 return;
             }
 
@@ -575,7 +578,8 @@ public class Repository {
         for (String fileName: givenCommit.files().keySet()) {
             File file = join(CWD, fileName);
             if (file.exists() && !currentCommit.files().containsKey(fileName)) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.out.println("There is an untracked file in the way; "
+                        + "delete it, or add and commit it first.");
                 return;
             }
 
@@ -730,15 +734,12 @@ public class Repository {
         if (!mergeChecker(givenBranch)) {
             return;
         }
-
         String branch = readHeadBranch();
         String branchCommitSha1 = readHeadBranchCommitSha1();
         File givenBranchFile = join(BRANCH_DIR, givenBranch);
         String givenBranchCommitSha1 = readContentsAsString(givenBranchFile);
-
         /* Find split point. */
         String splitPointCommitSha1 = findLCA(branchCommitSha1, givenBranchCommitSha1);
-
         Commit splitPointCommit = mergeHelper(splitPointCommitSha1);
         Commit branchCommit = mergeHelper(branchCommitSha1);
         Commit givenBranchCommit = mergeHelper(givenBranchCommitSha1);
@@ -747,7 +748,6 @@ public class Repository {
         commitFiles.addAll(splitPointCommit.files().keySet());
         commitFiles.addAll(branchCommit.files().keySet());
         commitFiles.addAll(givenBranchCommit.files().keySet());
-
         List<String> files = plainFilenamesIn(CWD);
         File stagedAreaFile = join(GITLET_DIR, "index");
         StagedArea stagedArea =  readObject(stagedAreaFile, StagedArea.class);
@@ -755,47 +755,51 @@ public class Repository {
             File file = join(CWD, fileName);
             if (file.exists() && !branchCommit.files().containsKey(fileName)
                               && !stagedArea.addition.containsKey(fileName)) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.out.println("There is an untracked file in the way; "
+                        + "delete it, or add and commit it first.");
                 return;
             }
         }
-
         if (!stagedArea.addition.isEmpty() || !stagedArea.removal.isEmpty()) {
             System.out.println("You have uncommitted changes.");
             return;
         }
-
         for (String fileName: commitFiles) {
             String splitPointCommitText = commitFileText(splitPointCommit, fileName);
             String branchCommitText = commitFileText(branchCommit, fileName);
             String givenBranchCommitText = commitFileText(givenBranchCommit, fileName);
-
-            if (splitPointCommitText == null && branchCommitText == null && givenBranchCommitText != null) {
+            if (splitPointCommitText == null && branchCommitText == null
+                    && givenBranchCommitText != null) {
                 checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
                 add(fileName);
             }
-            if (splitPointCommitText != null && branchCommitText != null && givenBranchCommitText == null) {
+            if (splitPointCommitText != null && branchCommitText != null
+                    && givenBranchCommitText == null) {
                 if (splitPointCommitText.equals(branchCommitText)) {
                     rm(fileName);
                 } else {
                     System.out.println("Encountered a merge conflict.");
                     File file = join(CWD, fileName);
-                    writeContents(file, "<<<<<<< HEAD" + "\n" + branchCommitText + "\n" + "=======" + "\n" + ">>>>>>>");
+                    writeContents(file, "<<<<<<< HEAD" + "\n" + branchCommitText
+                            + "\n" + "=======" + "\n" + ">>>>>>>");
                 }
             }
             if (branchCommitText == null || givenBranchCommitText == null) {
                 continue;
             }
-            if (branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
+            if (branchCommitText.equals(splitPointCommitText)
+                    && !givenBranchCommitText.equals(splitPointCommitText)) {
                 checkoutCommitIdFileName(givenBranchCommitSha1, fileName);
                 add(fileName);
             }
-            if (!branchCommitText.equals(splitPointCommitText) && !givenBranchCommitText.equals(splitPointCommitText)) {
+            if (!branchCommitText.equals(splitPointCommitText)
+                    && !givenBranchCommitText.equals(splitPointCommitText)) {
                 if (!branchCommitText.equals(givenBranchCommitText)) {
                     System.out.println("Encountered a merge conflict.");
                     File file = join(CWD, fileName);
-                    writeContents(file, "<<<<<<< HEAD" + "\n" + branchCommitText + "\n"
-                            + "=======" + "\n" + givenBranchCommitText + "\n" + ">>>>>>>");
+                    writeContents(file, "<<<<<<< HEAD" + "\n"
+                            + branchCommitText + "\n" + "=======" + "\n"
+                            + givenBranchCommitText + "\n" + ">>>>>>>");
                 }
             }
         }
