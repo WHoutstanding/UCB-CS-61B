@@ -781,7 +781,7 @@ public class Repository {
                     System.out.println("Encountered a merge conflict.");
                     File file = join(CWD, fileName);
                     writeContents(file, "<<<<<<< HEAD" + "\n" + branchCommitText
-                            + "\n" + "=======" + "\n" + ">>>>>>>");
+                            + "=======" + "\n" + ">>>>>>>\n");
                 }
             }
             if (branchCommitText == null || givenBranchCommitText == null) {
@@ -798,8 +798,8 @@ public class Repository {
                     System.out.println("Encountered a merge conflict.");
                     File file = join(CWD, fileName);
                     writeContents(file, "<<<<<<< HEAD" + "\n"
-                            + branchCommitText + "\n" + "=======" + "\n"
-                            + givenBranchCommitText + "\n" + ">>>>>>>");
+                            + branchCommitText + "=======" + "\n"
+                            + givenBranchCommitText  + ">>>>>>>\n");
                 }
             }
         }
